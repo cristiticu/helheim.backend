@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 import json
 from uuid import uuid4
-
 from pydantic import UUID4
 import settings
 from realms.exceptions import PasswordTooShort, PortalAlreadyOpened
@@ -9,6 +8,7 @@ from realms.model import CloseRealmPortal, CreateRealmPortal, RealmPortal
 from realms.persistence import RealmsPersistence
 from shared.ec2 import ec2_client
 from shared.lambda_client import lambda_client
+from shared.s3 import s3_client
 
 
 class RealmsService():
@@ -16,6 +16,7 @@ class RealmsService():
         self._realms = realms
         self._lambda = lambda_client()
         self._ec2 = ec2_client()
+        self._s3 = s3_client()
 
     def get_realm(self, guid: UUID4):
         return self._realms.get_realm(guid)
@@ -23,11 +24,37 @@ class RealmsService():
     def get_realms_for_user(self, user_guid: UUID4):
         return self._realms.get_realms_for_user(user_guid)
 
+    def get_realm_user(self, realm_guid: UUID4, user_guid: UUID4):
+        return self._realms.get_realm_user(realm_guid, user_guid)
+
     def get_realm_users(self, guid: UUID4):
         return self._realms.get_realm_users(guid)
 
     def get_realm_portals(self, guid: UUID4):
         return self._realms.get_realm_portals(guid)
+
+    def get_realm_worlds(self, guid: UUID4) -> list[str]:
+        search_prefix = f"{guid}/worlds/"
+        delimiter = "/"
+
+        world_names = []
+
+        response = self._s3.list_objects_v2(
+            Bucket=settings.REALM_WORLDS_S3_BUCKET_NAME,
+            Prefix=search_prefix,
+            Delimiter=delimiter,
+        )
+
+        for prefix in response.get("CommonPrefixes", []):
+            full_prefix = prefix.get("Prefix", "")
+
+            world_name = full_prefix.replace(
+                search_prefix, "").rstrip(delimiter)
+
+            if world_name:
+                world_names.append(world_name)
+
+        return world_names
 
     def open_portal(self, realm_guid: UUID4, payload: CreateRealmPortal):
         realm = self.get_realm(realm_guid)

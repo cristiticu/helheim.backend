@@ -7,6 +7,12 @@ class RealmNotFound(ItemNotFound):
             msg=msg or "Realm not found", error_trace=error_trace)
 
 
+class RealmUserNotFound(ItemNotFound):
+    def __init__(self, msg=None, error_trace=None):
+        super(RealmUserNotFound, self).__init__(
+            msg=msg or "Realm user not found", error_trace=error_trace)
+
+
 class PortalAlreadyOpened(InvalidItemRequest):
     def __init__(self, msg=None, error_trace=None):
         super(PortalAlreadyOpened, self).__init__(

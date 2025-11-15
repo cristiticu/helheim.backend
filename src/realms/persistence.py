@@ -2,7 +2,7 @@ from boto3.dynamodb.conditions import Key
 from httpx import delete
 from pydantic import UUID4
 import settings
-from realms.exceptions import RealmNotFound
+from realms.exceptions import RealmNotFound, RealmUserNotFound
 from realms.model import Realm, RealmPortal, RealmUser
 from shared.dynamodb import dynamodb_table
 
@@ -32,6 +32,17 @@ class RealmsPersistence():
         items = response.get("Items", [])
 
         return [RealmUser.from_db_item(item) for item in items]
+
+    def get_realm_user(self, realm_guid: UUID4, user_guid: UUID4) -> RealmUser:
+        response = self.realms.get_item(
+            Key={"guid": str(realm_guid), "s_key": f"USER#{user_guid}"}
+        )
+        item = response.get("Item")
+
+        if item is None:
+            raise RealmUserNotFound()
+
+        return RealmUser.from_db_item(item)
 
     def get_realm_users(self, guid: UUID4) -> list[RealmUser]:
         response = self.realms.query(
