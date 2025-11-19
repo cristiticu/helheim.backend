@@ -70,6 +70,7 @@ class RealmPortal(BaseModel):
     portal_guid: UUID4
     instance_id: str
     spot_request_id: str
+    password: str
     name: str
     world_name: str
     public_address: str
@@ -90,6 +91,7 @@ class RealmPortal(BaseModel):
             "spot_request_id": self.spot_request_id,
             "name": self.name,
             "world_name": self.world_name,
+            "password": self.password,
             "public_address": self.public_address,
             "region": self.region,
             "instance_type": self.instance_type,

@@ -81,6 +81,7 @@ class RealmsService():
 
         response_payload = json.loads(
             response.get("Payload").read().decode("utf-8"))
+
         portal_payload = {
             "guid": realm_guid,
             "portal_guid": uuid4(),
@@ -89,6 +90,7 @@ class RealmsService():
             "spot_request_id": response_payload["spotRequestId"],
             "name": response_payload["config"]["serverName"],
             "world_name": response_payload["config"]["worldName"],
+            "password": payload.password,
             "public_address": response_payload["publicIpAddress"],
             "region": response_payload["region"],
             "instance_type": response_payload["instanceType"],
