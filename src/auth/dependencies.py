@@ -55,3 +55,8 @@ def refresh_token_data(refresh_token: Annotated[str, Depends(oauth2_scheme)]) ->
         raise CredentialsException(msg="Corrupt signature")
 
     return RefreshTokenData(raw_token=refresh_token, user_guid=user_guid)
+
+
+UserTokenDependency = Annotated[UserTokenData, Depends(user_token_data)]
+RefreshTokenDependency = Annotated[RefreshTokenData, Depends(
+    refresh_token_data)]

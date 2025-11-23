@@ -44,16 +44,4 @@ class AuthService():
         if token_data.get("user_guid") != user_guid:
             raise CredentialsException(msg="Invalid credentials")
 
-        new_access_token = create_access_token(
-            {"user_guid": str(user_guid)},
-            settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        )
-        new_refresh_token = create_access_token({
-            "user_guid": str(user_guid)},
-            settings.REFRESH_TOKEN_EXPIRE_MINUTES
-        )
-
-        return {
-            "access_token": new_access_token,
-            "refresh_token": new_refresh_token
-        }
+        return self.create_tokens(user_guid)

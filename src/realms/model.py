@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional, Union
 from pydantic import UUID4, BaseModel, ConfigDict, Field
 from shared.utils import format_utc_datetime_string
 
@@ -36,6 +36,7 @@ class RealmUser(BaseModel):
 
     guid: UUID4
     user_guid: UUID4
+    username: str
     role: str
     c_at: datetime
     meta_type: str = Field(default="REALM_USER")
@@ -47,6 +48,7 @@ class RealmUser(BaseModel):
         return {
             "guid": str(self.guid),
             "s_key": s_key,
+            "username": self.username,
             "user_guid": str(self.user_guid),
             "role": self.role,
             "c_at": format_utc_datetime_string(self.c_at),
@@ -68,6 +70,7 @@ class RealmPortal(BaseModel):
 
     guid: UUID4
     portal_guid: UUID4
+    opened_by_user_guid: UUID4
     instance_id: str
     spot_request_id: str
     password: str
@@ -86,6 +89,7 @@ class RealmPortal(BaseModel):
 
         return {
             "guid": str(self.guid),
+            "opened_by_user_guid": str(self.opened_by_user_guid),
             "s_key": s_key,
             "instance_id": self.instance_id,
             "spot_request_id": self.spot_request_id,
@@ -110,13 +114,95 @@ class RealmPortal(BaseModel):
         return RealmPortal.model_validate(item_payload)
 
 
-class CreateRealmPortal(BaseModel):
+class RealmWorld(BaseModel):
+    model_config = ConfigDict(revalidate_instances='always')
+
     name: str
-    world_name: str
-    password: str
+    m_at: datetime
+
+    def to_db_item(self):
+        return {
+            "name": self.name,
+            "m_at": format_utc_datetime_string(self.m_at),
+        }
+
+    @classmethod
+    def from_db_item(cls, item: dict):
+        return RealmWorld.model_validate(item)
+
+
+class RealmListFile(BaseModel):
+    model_config = ConfigDict(revalidate_instances='always')
+
+    file_name: str
+    content: str
+
+    def to_db_item(self):
+        return {
+            "file_name": self.file_name,
+            "content": self.content,
+        }
+
+    @classmethod
+    def from_db_item(cls, item: dict):
+        return RealmListFile.model_validate(item)
 
 
 class CloseRealmPortal(BaseModel):
     portal_guid: UUID4
     instance_id: str
     spot_request_id: str
+
+
+class CreateRealmWorldBackup(BaseModel):
+    backup_name: str
+
+
+class CreateRealmFile(BaseModel):
+    file_name: str
+    content: str
+
+
+class CombatModifier(BaseModel):
+    key: Literal["combat"]
+    value: Literal["normal", "veryeasy", "easy", "hard", "veryhard"]
+
+
+class DeathPenaltyModifier(BaseModel):
+    key: Literal["deathpenalty"]
+    value: Literal["normal", "casual", "veryeasy", "easy", "hard", "hardcore"]
+
+
+class ResourcesModifier(BaseModel):
+    key: Literal["resources"]
+    value: Literal["normal", "muchless", "less", "more", "muchmore", "most"]
+
+
+class RaidsModifier(BaseModel):
+    key: Literal["raids"]
+    value: Literal["normal", "none", "muchless", "less", "more", "muchmore"]
+
+
+class PortalsModifier(BaseModel):
+    key: Literal["portals"]
+    value: Literal["normal", "casual", "hard", "veryhard"]
+
+
+WorldModifier = Union[
+    CombatModifier,
+    DeathPenaltyModifier,
+    ResourcesModifier,
+    RaidsModifier,
+    PortalsModifier,
+]
+
+
+class CreateRealmPortal(BaseModel):
+    name: str
+    world_name: str
+    password: str
+    preset: Optional[Literal["normal", "casual", "easy",
+                             "hard", "hardcore", "immersive", "hammer"]] = None
+    modifiers: Optional[list[WorldModifier]] = None
+    keys: Optional[list[Literal["nobuildcost",
+                                "playerevents", "passivemobs", "nomap"]]] = None
