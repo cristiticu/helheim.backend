@@ -206,3 +206,4 @@ class CreateRealmPortal(BaseModel):
     modifiers: Optional[list[WorldModifier]] = None
     keys: Optional[list[Literal["nobuildcost",
                                 "playerevents", "passivemobs", "nomap"]]] = None
+    modpack: Optional[str] = None

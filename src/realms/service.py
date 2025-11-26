@@ -180,7 +180,8 @@ class RealmsService():
             "password": payload.password,
             "preset": payload.preset,
             "modifiers": [modifier.model_dump() for modifier in payload.modifiers] if payload.modifiers else None,
-            "keys": payload.keys
+            "keys": payload.keys,
+            "modpack": payload.modpack,
         }
 
         response = self._lambda.invoke(
