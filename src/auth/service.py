@@ -1,4 +1,4 @@
-from pwdlib import PasswordHash, hashers
+from pwdlib import PasswordHash
 from pydantic import UUID4
 from auth.utils import create_access_token, decode_access_token
 from exceptions import CredentialsException

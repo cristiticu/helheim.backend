@@ -1,4 +1,5 @@
 from mangum import Mangum
+import logging
 import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,14 @@ from routers.auth import router as authentication_router
 from routers.accounts import router as account_router
 from routers.realms import router as realm_router
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 app = FastAPI(title='Helheim Backend',
               version='0.1.0',

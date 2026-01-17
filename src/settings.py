@@ -2,7 +2,9 @@ import json
 from dotenv import load_dotenv
 import os
 
-if os.environ.get("ENVIRONMENT", "production") == "local":
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
+
+if ENVIRONMENT == "local":
     load_dotenv('.env.local')
 else:
     load_dotenv('.env.production')

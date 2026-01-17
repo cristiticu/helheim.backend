@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import json
+import logging
 from uuid import uuid4
 from pydantic import UUID4
 import settings
@@ -15,8 +16,10 @@ class RealmsService():
         self._realms = realms
         self._lambda = lambda_client()
         self._ec2 = ec2_client()
+        self._logger = logging.getLogger(__name__)
 
     def get_realm(self, guid: UUID4):
+        self._logger.debug(f"Fetching realm with guid: {guid}")
         return self._realms.get_realm(guid)
 
     def get_realms_for_user(self, user_guid: UUID4):
@@ -35,28 +38,48 @@ class RealmsService():
         return self._realms.get_realm_worlds(guid)
 
     def create_world_backup(self, realm_guid: UUID4, world_name: str, backup_name: str):
+        self._logger.info(
+            f"Creating world backup for realm {realm_guid}, world: {world_name}, backup: {backup_name}")
         self._realms.persist_world_backup(realm_guid, world_name, backup_name)
+        self._logger.info(f"Successfully created world backup: {backup_name}")
 
     def delete_world(self, realm_guid: UUID4, world_name: str):
+        self._logger.warning(
+            f"Deleting world '{world_name}' from realm {realm_guid}")
         self._realms.delete_world(realm_guid, world_name)
+        self._logger.info(f"Successfully deleted world: {world_name}")
 
     def get_realm_list_file(self, realm_guid: UUID4, file_name: str):
         return self._realms.get_realm_list_file(realm_guid, file_name)
 
     def save_realm_list_file(self, realm_guid: UUID4, payload: CreateRealmFile):
+        self._logger.info(
+            f"Saving realm list file '{payload.file_name}' for realm {realm_guid}")
+
         if payload.file_name not in ["permittedlist.txt", "bannedlist.txt", "adminlist.txt"]:
+            self._logger.error(
+                f"Invalid realm list file name: {payload.file_name}")
             raise InvalidRealmListFileName()
 
         self._realms.persist_realm_list_file(realm_guid, payload)
+        self._logger.info(
+            f"Successfully saved realm list file: {payload.file_name}")
 
     def open_portal(self, realm_guid: UUID4, user_guid: UUID4, payload: CreateRealmPortal):
+        self._logger.info(
+            f"Opening portal for realm {realm_guid} by user {user_guid}, server: {payload.name}")
+
         realm = self.get_realm(realm_guid)
         opened_portals = self.get_realm_portals(realm.guid)
 
         if len(opened_portals) > 0:
+            self._logger.warning(
+                f"Portal already opened for realm {realm_guid}")
             raise PortalAlreadyOpened()
 
         if len(payload.password) < 6:
+            self._logger.warning(
+                f"Password too short for realm {realm_guid} portal")
             raise PasswordTooShort()
 
         lambda_payload = {
@@ -70,6 +93,7 @@ class RealmsService():
             "modpack": payload.modpack,
         }
 
+        self._logger.info(f"Invoking instance lambda for realm {realm_guid}")
         response = self._lambda.invoke(
             FunctionName=settings.INSTANCE_LAMBDA_NAME,
             InvocationType="RequestResponse",
@@ -78,6 +102,9 @@ class RealmsService():
 
         response_payload = json.loads(
             response.get("Payload").read().decode("utf-8"))
+
+        self._logger.info(
+            f"Instance created successfully - ID: {response_payload.get('instanceId')}, IP: {response_payload.get('publicIpAddress')}")
 
         portal_payload = {
             "guid": realm_guid,
@@ -101,17 +128,39 @@ class RealmsService():
 
         self._realms.persist(portal)
 
+        self._logger.info(
+            f"Portal successfully opened for realm {realm_guid} - Portal ID: {portal.portal_guid}")
         return portal
 
     def close_portal(self, realm_guid: UUID4, payload: CloseRealmPortal):
-        self._ec2.terminate_instances(
-            InstanceIds=[payload.instance_id],
-            Force=False,
-            SkipOsShutdown=False
-        )
+        self._logger.info(
+            f"Closing portal for realm {realm_guid} - Portal ID: {payload.portal_guid}")
 
-        self._ec2.cancel_spot_instance_requests(
-            SpotInstanceRequestIds=[payload.spot_request_id]
-        )
+        try:
+            self._ec2.terminate_instances(
+                InstanceIds=[payload.instance_id],
+                Force=False,
+                SkipOsShutdown=False
+            )
+            self._logger.info(
+                f"Successfully initiated termination of EC2 instance: {payload.instance_id}")
+        except Exception as e:
+            self._logger.warning(
+                f"Failed to terminate EC2 instance {payload.instance_id}: {str(e)}. "
+                "Instance may already be terminated."
+            )
+
+        try:
+            self._ec2.cancel_spot_instance_requests(
+                SpotInstanceRequestIds=[payload.spot_request_id]
+            )
+            self._logger.info(
+                f"Successfully cancelled spot instance request: {payload.spot_request_id}")
+        except Exception as e:
+            self._logger.warning(
+                f"Failed to cancel spot instance request {payload.spot_request_id}: {str(e)}. "
+                "Request may already be cancelled."
+            )
 
         self._realms.delete_portal(realm_guid, payload.portal_guid)
+        self._logger.info(f"Portal successfully closed for realm {realm_guid}")

@@ -1,14 +1,14 @@
 import boto3
-import settings
+
+from shared.utils import get_aws_env_params
 
 
 def dynamodb_table(table_name: str):
+    params = get_aws_env_params()
+
     dynamodb = boto3.resource(
         'dynamodb',
-        region_name=settings.AWS_REGION_NAME,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        endpoint_url=settings.AWS_ENDPOINT_URL
+        **params
     )
 
     return dynamodb.Table(table_name)
