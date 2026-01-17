@@ -1,16 +1,13 @@
 from datetime import datetime, timezone
 import json
 from uuid import uuid4
-from botocore.exceptions import ClientError
 from pydantic import UUID4
-from exceptions import InvalidItemRequest
 import settings
-from realms.exceptions import InvalidRealmListFileName, PasswordTooShort, PortalAlreadyOpened, RealmListFileNotFound, WorldNotFound
-from realms.model import CloseRealmPortal, CreateRealmFile, CreateRealmPortal, RealmListFile, RealmPortal, RealmWorld
+from realms.exceptions import InvalidRealmListFileName, PasswordTooShort, PortalAlreadyOpened
+from realms.model import CloseRealmPortal, CreateRealmFile, CreateRealmPortal, RealmPortal, RealmWorld
 from realms.persistence import RealmsPersistence
 from shared.ec2 import ec2_client
 from shared.lambda_client import lambda_client
-from shared.s3 import s3_client
 
 
 class RealmsService():
@@ -18,7 +15,6 @@ class RealmsService():
         self._realms = realms
         self._lambda = lambda_client()
         self._ec2 = ec2_client()
-        self._s3 = s3_client()
 
     def get_realm(self, guid: UUID4):
         return self._realms.get_realm(guid)
@@ -36,132 +32,22 @@ class RealmsService():
         return self._realms.get_realm_portals(guid)
 
     def get_realm_worlds(self, guid: UUID4) -> list[RealmWorld]:
-        search_prefix = f"{guid}/worlds/"
-        delimiter = "/"
-
-        world_names = []
-
-        response = self._s3.list_objects_v2(
-            Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-            Prefix=search_prefix,
-            Delimiter=delimiter,
-        )
-
-        for prefix in response.get("CommonPrefixes", []):
-            full_prefix = prefix.get("Prefix", "")
-
-            world_name = full_prefix.replace(
-                search_prefix, "").rstrip(delimiter)
-
-            if world_name:
-                world_names.append(world_name)
-
-        realm_worlds = []
-
-        for world_name in world_names:
-            realm_world_key = f"{guid}/worlds/{world_name}/{world_name}.db"
-
-            response = self._s3.head_object(
-                Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-                Key=realm_world_key
-            )
-
-            last_modified = response.get("LastModified")
-
-            realm_world_payload = {
-                "name": world_name,
-                "m_at": last_modified
-            }
-
-            realm_world = RealmWorld.model_validate(realm_world_payload)
-
-            realm_worlds.append(realm_world)
-
-        return realm_worlds
+        return self._realms.get_realm_worlds(guid)
 
     def create_world_backup(self, realm_guid: UUID4, world_name: str, backup_name: str):
-        world_extensions = ["db", "fwl"]
-
-        for extension in world_extensions:
-            source_key = f"{realm_guid}/worlds/{world_name}/{world_name}.{extension}"
-            destination_key = f"{realm_guid}/worlds/{backup_name}/{backup_name}.{extension}"
-
-            try:
-                self._s3.copy_object(
-                    Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-                    CopySource={
-                        'Bucket': settings.REALM_STORAGE_S3_BUCKET_NAME,
-                        'Key': source_key
-                    },
-                    Key=destination_key
-                )
-            except ClientError as e:
-                error_code = e.response.get("Error", {}).get("Code", "")
-
-                if error_code == 'NoSuchKey':
-                    raise WorldNotFound(
-                        msg=f"World '{world_name}' not found for realm '{realm_guid}'")
-                else:
-                    raise InvalidItemRequest(
-                        msg="Failed to create world backup")
+        self._realms.persist_world_backup(realm_guid, world_name, backup_name)
 
     def delete_world(self, realm_guid: UUID4, world_name: str):
-        world_prefix = f"{realm_guid}/worlds/{world_name}/"
-
-        response = self._s3.list_objects_v2(
-            Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-            Prefix=world_prefix,
-        )
-
-        keys_to_delete = [{'Key': obj.get("Key", "")}
-                          for obj in response.get('Contents', [])]
-
-        if keys_to_delete:
-            try:
-                self._s3.delete_objects(
-                    Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-                    Delete={
-                        'Objects': keys_to_delete,  # type: ignore
-                    }
-                )
-            except ClientError:
-                raise InvalidItemRequest(msg="Failed to delete world")
+        self._realms.delete_world(realm_guid, world_name)
 
     def get_realm_list_file(self, realm_guid: UUID4, file_name: str):
-        file_key = f"{realm_guid}/lists/{file_name}"
-
-        try:
-            response = self._s3.get_object(
-                Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-                Key=file_key
-            )
-
-            content = response.get("Body").read().decode('utf-8')
-
-            realm_list_file = RealmListFile.model_validate({
-                "file_name": file_name,
-                "content": content
-            })
-
-            return realm_list_file
-        except ClientError:
-            raise RealmListFileNotFound(msg="Failed to get realm list file")
+        return self._realms.get_realm_list_file(realm_guid, file_name)
 
     def save_realm_list_file(self, realm_guid: UUID4, payload: CreateRealmFile):
         if payload.file_name not in ["permittedlist.txt", "bannedlist.txt", "adminlist.txt"]:
             raise InvalidRealmListFileName()
 
-        file_key = f"{realm_guid}/lists/{payload.file_name}"
-
-        try:
-            self._s3.put_object(
-                Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-                Key=file_key,
-                Body=payload.content.encode('utf-8'),
-                ContentType='text/plain'
-            )
-        except ClientError:
-            raise InvalidItemRequest(msg="Failed to save realm list file")
+        self._realms.persist_realm_list_file(realm_guid, payload)
 
     def open_portal(self, realm_guid: UUID4, user_guid: UUID4, payload: CreateRealmPortal):
         realm = self.get_realm(realm_guid)

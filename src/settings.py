@@ -2,9 +2,16 @@ import json
 from dotenv import load_dotenv
 import os
 
-load_dotenv('.env')
+if os.environ.get("ENVIRONMENT", "production") == "local":
+    load_dotenv('.env.local')
+else:
+    load_dotenv('.env.production')
 
 AWS_REGION_NAME = os.environ.get('AWS_REGION_NAME')
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_ENDPOINT_URL = os.environ.get('AWS_ENDPOINT_URL')
+
 CORS_ORIGINS = json.loads(
     os.environ.get('CORS_ORIGINS', '[]'))
 
