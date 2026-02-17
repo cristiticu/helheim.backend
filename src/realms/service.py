@@ -5,7 +5,7 @@ from uuid import uuid4
 from pydantic import UUID4
 import settings
 from realms.exceptions import InvalidRealmListFileName, PasswordTooShort, PortalAlreadyOpened
-from realms.model import CloseRealmPortal, CreateRealmFile, CreateRealmPortal, RealmPortal, RealmWorld
+from realms.model import CloseRealmPortal, CreateRealmFile, CreateRealmPortal, Realm, RealmPortal, RealmWorld
 from realms.persistence import RealmsPersistence
 from shared.ec2 import ec2_client
 from shared.lambda_client import lambda_client
@@ -65,6 +65,52 @@ class RealmsService():
         self._logger.info(
             f"Successfully saved realm list file: {payload.file_name}")
 
+    def invoke_valheim_instance_lambda(self, realm: Realm, payload: CreateRealmPortal):
+        lambda_payload = {
+            "realmGuid": str(realm.guid),
+            "serverName": payload.name,
+            "worldName": payload.world_name,
+            "password": payload.password,
+            "preset": payload.preset,
+            "modifiers": [modifier.model_dump() for modifier in payload.modifiers] if payload.modifiers else None,
+            "keys": payload.keys,
+            "modpack": payload.modpack,
+        }
+
+        self._logger.info(
+            f"Invoking instance lambda for realm {realm.name} ({realm.guid})")
+        response = self._lambda.invoke(
+            FunctionName=settings.VALHEIM_INSTANCE_LAMBDA_NAME,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(lambda_payload)
+        )
+
+        response_payload = json.loads(
+            response.get("Payload").read().decode("utf-8"))
+
+        return response_payload
+
+    def invoke_vintage_story_instance_lambda(self, realm: Realm, payload: CreateRealmPortal):
+        lambda_payload = {
+            "realmGuid": str(realm.guid),
+            "serverName": payload.name,
+            "worldName": payload.world_name,
+            "password": payload.password,
+        }
+
+        self._logger.info(
+            f"Invoking Vintage Story instance lambda for realm {realm.name} ({realm.guid})")
+        response = self._lambda.invoke(
+            FunctionName=settings.VINTAGE_STORY_INSTANCE_LAMBDA_NAME,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(lambda_payload)
+        )
+
+        response_payload = json.loads(
+            response.get("Payload").read().decode("utf-8"))
+
+        return response_payload
+
     def open_portal(self, realm_guid: UUID4, user_guid: UUID4, payload: CreateRealmPortal):
         self._logger.info(
             f"Opening portal for realm {realm_guid} by user {user_guid}, server: {payload.name}")
@@ -82,26 +128,17 @@ class RealmsService():
                 f"Password too short for realm {realm_guid} portal")
             raise PasswordTooShort()
 
-        lambda_payload = {
-            "realmGuid": str(realm_guid),
-            "serverName": payload.name,
-            "worldName": payload.world_name,
-            "password": payload.password,
-            "preset": payload.preset,
-            "modifiers": [modifier.model_dump() for modifier in payload.modifiers] if payload.modifiers else None,
-            "keys": payload.keys,
-            "modpack": payload.modpack,
-        }
-
-        self._logger.info(f"Invoking instance lambda for realm {realm_guid}")
-        response = self._lambda.invoke(
-            FunctionName=settings.INSTANCE_LAMBDA_NAME,
-            InvocationType="RequestResponse",
-            Payload=json.dumps(lambda_payload)
-        )
-
-        response_payload = json.loads(
-            response.get("Payload").read().decode("utf-8"))
+        if realm.realm_type == "valheim":
+            response_payload = self.invoke_valheim_instance_lambda(
+                realm, payload)
+        elif realm.realm_type == "vintage_story":
+            response_payload = self.invoke_vintage_story_instance_lambda(
+                realm, payload)
+        else:
+            self._logger.error(
+                f"Unsupported realm type '{realm.realm_type}' for realm {realm_guid}")
+            raise Exception(
+                f"Unsupported realm type: {realm.realm_type}")
 
         self._logger.info(
             f"Instance created successfully - ID: {response_payload.get('instanceId')}, IP: {response_payload.get('publicIpAddress')}")

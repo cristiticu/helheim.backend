@@ -11,6 +11,7 @@ class Realm(BaseModel):
     name: str
     description: Optional[str]
     c_at: datetime
+    realm_type: str
     meta_type: str = Field(default="REALM")
 
     def to_db_item(self):
@@ -23,6 +24,7 @@ class Realm(BaseModel):
             "name": self.name,
             "description": self.description,
             "c_at": format_utc_datetime_string(self.c_at),
+            "realm_type": self.realm_type,
             "meta_type": meta_type,
         }
 

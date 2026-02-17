@@ -7,38 +7,27 @@ from realms.exceptions import RealmListFileNotFound, RealmNotFound, RealmUserNot
 from realms.model import Realm, RealmListFile, RealmPortal, RealmUser, RealmWorld
 from shared.s3 import s3_client
 from shared.dynamodb import dynamodb_table
+from realms.world_manager import WorldManager
 
 
 class RealmsPersistence():
     def __init__(self):
         self._realms = dynamodb_table(settings.REALMS_TABLE_NAME)
         self._realms_data_s3 = s3_client()
+        self._world_manager = WorldManager(
+            self._realms_data_s3, settings.REALM_STORAGE_S3_BUCKET_NAME)
 
     def persist_world_backup(self, realm_guid: UUID4, world_name: str, backup_name: str):
-        world_extensions = ["db", "fwl"]
-
-        for extension in world_extensions:
-            source_key = f"{realm_guid}/worlds/{world_name}/{world_name}.{extension}"
-            destination_key = f"{realm_guid}/worlds/{backup_name}/{backup_name}.{extension}"
-
-            try:
-                self._realms_data_s3.copy_object(
-                    Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-                    CopySource={
-                        'Bucket': settings.REALM_STORAGE_S3_BUCKET_NAME,
-                        'Key': source_key
-                    },
-                    Key=destination_key
-                )
-            except ClientError as e:
-                error_code = e.response.get("Error", {}).get("Code", "")
-
-                if error_code == 'NoSuchKey':
-                    raise WorldNotFound(
-                        msg=f"World '{world_name}' not found for realm '{realm_guid}'")
-                else:
-                    raise InvalidItemRequest(
-                        msg="Failed to create world backup")
+        realm = self.get_realm(realm_guid)
+        try:
+            self._world_manager.backup_world(realm, world_name, backup_name)
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code == 'NoSuchKey':
+                raise WorldNotFound(
+                    msg=f"World '{world_name}' not found for realm '{realm_guid}'")
+            else:
+                raise InvalidItemRequest(msg="Failed to create world backup")
 
     def persist_realm_list_file(self, realm_guid: UUID4, payload):
         file_key = f"{realm_guid}/lists/{payload.file_name}"
@@ -110,70 +99,15 @@ class RealmsPersistence():
         )
 
     def get_realm_worlds(self, guid: UUID4) -> list[RealmWorld]:
-        search_prefix = f"{guid}/worlds/"
-        delimiter = "/"
-
-        world_names = []
-
-        response = self._realms_data_s3.list_objects_v2(
-            Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-            Prefix=search_prefix,
-            Delimiter=delimiter,
-        )
-
-        for prefix in response.get("CommonPrefixes", []):
-            full_prefix = prefix.get("Prefix", "")
-
-            world_name = full_prefix.replace(
-                search_prefix, "").rstrip(delimiter)
-
-            if world_name:
-                world_names.append(world_name)
-
-        realm_worlds = []
-
-        for world_name in world_names:
-            realm_world_key = f"{guid}/worlds/{world_name}/{world_name}.db"
-
-            response = self._realms_data_s3.head_object(
-                Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-                Key=realm_world_key
-            )
-
-            last_modified = response.get("LastModified")
-
-            realm_world_payload = {
-                "name": world_name,
-                "m_at": last_modified
-            }
-
-            realm_world = RealmWorld.model_validate(realm_world_payload)
-
-            realm_worlds.append(realm_world)
-
-        return realm_worlds
+        realm = self.get_realm(guid)
+        return self._world_manager.get_worlds(realm)
 
     def delete_world(self, realm_guid: UUID4, world_name: str):
-        world_prefix = f"{realm_guid}/worlds/{world_name}/"
-
-        response = self._realms_data_s3.list_objects_v2(
-            Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-            Prefix=world_prefix,
-        )
-
-        keys_to_delete = [{'Key': obj.get("Key", "")}
-                          for obj in response.get('Contents', [])]
-
-        if keys_to_delete:
-            try:
-                self._realms_data_s3.delete_objects(
-                    Bucket=settings.REALM_STORAGE_S3_BUCKET_NAME,
-                    Delete={
-                        'Objects': keys_to_delete,  # type: ignore
-                    }
-                )
-            except ClientError:
-                raise InvalidItemRequest(msg="Failed to delete world")
+        realm = self.get_realm(realm_guid)
+        try:
+            self._world_manager.delete_world(realm, world_name)
+        except ClientError:
+            raise InvalidItemRequest(msg="Failed to delete world")
 
     def get_realm_list_file(self, realm_guid: UUID4, file_name: str):
         file_key = f"{realm_guid}/lists/{file_name}"

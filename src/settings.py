@@ -25,7 +25,8 @@ REALMS_TABLE_USER_GUID_GSI = "gsi.user-realms-lookup-2"
 
 REALM_STORAGE_S3_BUCKET_NAME = "helheim.storage"
 
-INSTANCE_LAMBDA_NAME = "helheim_instance_lambda"
+VALHEIM_INSTANCE_LAMBDA_NAME = "helheim_instance_lambda"
+VINTAGE_STORY_INSTANCE_LAMBDA_NAME = "helheim_vintage_story_instance_lambda"
 
 SECRET_KEY = "b386aaadd83435c99d40d96234972bf3330506473c6a41d081565a6cc39d1b7c"
 ALGORITHM = "HS256"
