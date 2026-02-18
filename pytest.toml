@@ -1,0 +1,6 @@
+[pytest]
+pythonpath = ["src"]
+addopts = ["--import-mode=importlib"]
+
+[pytest_env] 
+ENVIRONMENT = "test"

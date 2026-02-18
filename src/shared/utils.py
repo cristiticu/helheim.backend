@@ -23,11 +23,11 @@ def decode_last_evaluated_key(base64_key: str):
 
 
 def get_aws_env_params():
-    params = {}
-
-    # In production, we rely on the IAM role assigned to the instance/container
+    # Do not return any params in production. This ensures that the AWS SDK will use the default credential provider chain, which is the recommended approach for production environments. In non-production environments, we can return the params to allow for local testing with tools like LocalStack or moto.
     if settings.ENVIRONMENT == "production":
-        return params
+        return {}
+
+    params = {}
 
     if hasattr(settings, 'AWS_REGION_NAME') and settings.AWS_REGION_NAME:
         params['region_name'] = settings.AWS_REGION_NAME

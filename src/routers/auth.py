@@ -4,17 +4,19 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from auth.dependencies import refresh_token_data
 from auth.model import RefreshTokenData
-from context import ApplicationContext
+from context import ApplicationContext, get_application_context
 from accounts.model import CreateAccount
 
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-application_context = ApplicationContext()
 
 
 @router.post("")
-def authenticate(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)]):
-    tokens = application_context.authentication.authenticate(
+def authenticate(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],
+    ctx: Annotated[ApplicationContext, Depends(get_application_context)],
+):
+    tokens = ctx.authentication.authenticate(
         form_data.username,
         form_data.password
     )
@@ -29,14 +31,20 @@ def authenticate(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2P
 
 
 @router.post("/register")
-def register(user_payload: CreateAccount):
-    user = application_context.accounts.create(user_payload)
+def register(
+    user_payload: CreateAccount,
+    ctx: Annotated[ApplicationContext, Depends(get_application_context)],
+):
+    user = ctx.accounts.create(user_payload)
     return user
 
 
 @router.post("/refresh")
-def refresh(refresh_token: Annotated[RefreshTokenData, Depends(refresh_token_data)]):
-    tokens = application_context.authentication.refresh(
+def refresh(
+    refresh_token: Annotated[RefreshTokenData, Depends(refresh_token_data)],
+    ctx: Annotated[ApplicationContext, Depends(get_application_context)],
+):
+    tokens = ctx.authentication.refresh(
         refresh_token.raw_token,
         refresh_token.user_guid
     )

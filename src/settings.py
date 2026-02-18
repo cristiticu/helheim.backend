@@ -2,12 +2,21 @@ import json
 from dotenv import load_dotenv
 import os
 
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", None)
 
-if ENVIRONMENT == "local":
+
+if ENVIRONMENT is None:
+    raise ValueError(
+        "ENVIRONMENT variable is not set. Please set it to 'local', 'production' or 'test.")
+elif ENVIRONMENT == "local":
     load_dotenv('.env.local')
-else:
+elif ENVIRONMENT == "production":
     load_dotenv('.env.production')
+elif ENVIRONMENT == "test":
+    load_dotenv('.env.test')
+else:
+    raise ValueError(
+        f"Invalid ENVIRONMENT value: {ENVIRONMENT}. Must be 'local', 'production' or 'test'.")
 
 AWS_REGION_NAME = os.environ.get('AWS_REGION_NAME')
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')

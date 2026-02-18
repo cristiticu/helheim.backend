@@ -41,7 +41,8 @@ class AuthService():
     def refresh(self, refresh_token: str, user_guid: UUID4):
         token_data = decode_access_token(refresh_token)
 
-        if token_data.get("user_guid") != user_guid:
+        # Compare normalized GUID values to avoid type mismatch (str vs UUID4)
+        if token_data.get("user_guid") != str(user_guid):
             raise CredentialsException(msg="Invalid credentials")
 
         return self.create_tokens(user_guid)

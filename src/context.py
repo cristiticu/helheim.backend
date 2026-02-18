@@ -24,3 +24,7 @@ class ApplicationContext():
         self.realms = RealmsService(
             self.realms_persistence
         )
+
+
+def get_application_context():
+    return ApplicationContext()
