@@ -96,6 +96,7 @@ class RealmsService():
             "serverName": payload.name,
             "worldName": payload.world_name,
             "password": payload.password,
+            "modpack": payload.modpack,
         }
 
         self._logger.info(
