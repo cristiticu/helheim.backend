@@ -1,63 +1,66 @@
 # Helheim Backend
 
-Helheim is a backend service designed to manage game server instances (Valheim, Vintage Story) on AWS. It provides a FastAPI-based REST API to handle user accounts, authentication, and realm (server) management, including automated deployment of game servers using AWS EC2 Spot Instances and Lambda.
-
-## Tech Stack
-
-- **Framework:** [FastAPI](https://fastapi.tiangolo.com/) - High-performance Python web framework.
-- **Server Gateway:** [Mangum](https://mangum.io/) - Adapter for running ASGI applications in AWS Lambda.
-- **Cloud Provider:** [AWS](https://aws.amazon.com/) (DynamoDB, S3, EC2, Lambda).
-- **SDK:** [Boto3](https://aws.amazon.com/sdk-for-python/) - AWS SDK for Python.
-- **Environment Management:** [uv](https://github.com/astral-sh/uv) - Fast Python package installer and resolver.
-- **Security:** [pwdlib](https://github.com/the-maldridge/pwdlib) (Argon2), [PyJWT](https://pyjwt.readthedocs.io/).
+## Project Overview
+Helheim Backend is a robust, scalable backend service designed for managing game realms, user accounts, and authentication. Built with **FastAPI** and designed for deployment on **AWS Lambda**, it leverages a modern serverless architecture to provide high availability and cost-efficiency.
 
 ## Architecture
+The project follows a clean, layered architecture:
 
-The project follows a modular domain-driven structure:
+- **API Layer (FastAPI)**: Handles HTTP requests, validation, and routing.
+- **Service Layer**: Contains business logic, orchestrating calls between the API and persistence layers.
+- **Persistence Layer (Repository Pattern)**: Abstracts data access, interacting with DynamoDB and S3.
+- **Deployment (AWS Lambda & Mangum)**: The FastAPI application is wrapped with Mangum for execution in AWS Lambda environments.
 
-- **src/auth:** Authentication logic, JWT token generation, and verification.
-- **src/accounts:** User account management and persistence.
-- **src/realms:** Core logic for managing game servers (Realms), including portal opening/closing via EC2 and Lambda.
-- **src/shared:** Shared utilities and AWS client wrappers (DynamoDB, S3, EC2, Lambda).
-- **src/routers:** FastAPI route definitions mapping HTTP endpoints to domain services.
+### Tech Stack
+- **Framework**: [FastAPI](https://fastapi.tiangolo.com/)
+- **Runtime**: Python 3.12+
+- **Database**: [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) (Single-Table Design)
+- **Storage**: [Amazon S3](https://aws.amazon.com/s3/)
+- **Serverless Wrapper**: [Mangum](https://mangum.io/)
+- **Validation**: [Pydantic](https://docs.pydantic.dev/)
+- **Dependency Management**: [uv](https://github.com/astral-sh/uv)
 
-Deployment is primarily targeted at AWS Lambda using Mangum, with DynamoDB for persistence and S3 for storage.
+## Project Structure
+```text
+src/
+├── accounts/      # User account management
+├── auth/          # Authentication and Authorization
+├── realms/        # Game realm management
+├── routers/       # FastAPI route definitions
+├── shared/        # Shared utilities and AWS clients
+├── main.py        # Application entry point & Lambda handler
+└── settings.py    # Configuration management
+tests/             # Comprehensive test suite
+```
 
-## Developer Setup
+## Design Patterns
 
+### Single-Table Design
+We utilize Amazon DynamoDB with a Single-Table Design pattern. This allows us to store multiple entity types (Accounts, Realms, Users, Portals) in the same table, optimized for efficient querying using Partition Keys (PK) and Sort Keys (SK).
+
+### Repository Pattern
+Data access is encapsulated within `Persistence` classes (e.g., `AccountsPersistence`, `RealmsPersistence`). This decouples the business logic from the underlying database schema and AWS SDK (boto3) calls.
+
+### Service Layer Separation
+Business rules are isolated in `Service` classes (e.g., `AccountsService`). Routers depend on Services, and Services depend on Persistence classes, ensuring a clear unidirectional flow of dependency and making the code highly testable.
+
+## Getting Started
 ### Prerequisites
-
-- Python 3.13+
-- [uv](https://github.com/astral-sh/uv) installed.
-- AWS CLI configured with appropriate credentials.
+- Python 3.12
+- `uv` for package management
+- AWS CLI configured (for cloud resources)
 
 ### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/cristiticu/helheim.backend.git
-   cd helheim.backend
-   ```
-
-2. Install dependencies:
-   ```bash
-   uv sync
-   ```
+```bash
+uv sync
+```
 
 ### Running Locally
+```bash
+./run.local.sh
+```
 
-1. Set up your environment variables. Create a `.env.local` file based on the requirements in `src/settings.py`.
-   ```bash
-   export ENVIRONMENT=local
-   ```
-
-2. Run the local development server:
-   ```bash
-   ./run.local.sh
-   ```
-
-## API Documentation
-
-Once the server is running, you can access the interactive API documentation at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+### Running Tests
+```bash
+uv run pytest
+```

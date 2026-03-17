@@ -1,27 +1,28 @@
-# Realms Domain
+# Realms Module
 
-The `realms` module is the core of Helheim, managing game servers (Realms) and portals for Valheim and Vintage Story.
+## Purpose
+The `realms` module handles game realms, portal management, and world backups. It is responsible for organizing the core game infrastructure and user-realm relationships.
 
-## Responsibilities
+## Structure
+- `model.py`: Pydantic models for realms, portals, and world data.
+- `service.py`: `RealmsService` class containing business logic for realm management (e.g., world backup orchestration, portal creation).
+- `persistence.py`: `RealmsPersistence` class (Repository Pattern) for interacting with DynamoDB and S3.
+- `world_manager.py`: Utilities for handling world-related files and backups on S3.
+- `dependencies.py`: FastAPI dependencies for realm-specific route protection.
+- `exceptions.py`: Module-specific exceptions (e.g., `RealmNotFound`, `WorldNotFound`).
 
-- **Realm Lifecycle:** Managing realms, game worlds, and world backups.
-- **Portal Management:** Opening and closing game server instances via EC2 Spot Instances.
-- **Game Server Integration:** Invoking specific AWS Lambda functions (`VALHEIM_INSTANCE_LAMBDA_NAME`, `VINTAGE_STORY_INSTANCE_LAMBDA_NAME`) to provision and configure game servers.
-- **Realm Configuration:** Managing realm-specific list files (permitted, banned, and admin lists).
-- **Persistence:** Storing realm metadata and active portal status in DynamoDB.
+## Design Patterns
 
-## Core Components
+### Repository Pattern
+The `RealmsPersistence` class encapsulates all data access logic. It interacts with both DynamoDB (for realm metadata and relationships) and Amazon S3 (for world files and lists). This abstraction allows the service layer to work with high-level `Realm`, `RealmUser`, and `RealmWorld` objects.
 
-- `service.py`: `RealmsService` class handling high-level business logic for portal management and realm operations.
-- `persistence.py`: `RealmsPersistence` class for CRUD operations on DynamoDB's realms table.
-- `world_manager.py`: (Optional/Extended logic) Logic for managing specific game worlds within a realm.
-- `model.py`: Comprehensive Pydantic models for `Realm`, `RealmPortal`, `RealmWorld`, and server configuration payloads.
-- `dependencies.py`: FastAPI dependencies for accessing realm-specific data.
-- `exceptions.py`: Domain-specific exceptions like `PortalAlreadyOpened`, `PasswordTooShort`, and `InvalidRealmListFileName`.
+### Single-Table Design
+The `realms` module extensively uses DynamoDB Single-Table Design.
+- `REALM#DETAILS`: Stores metadata for a specific realm.
+- `USER#<user_guid>`: Stores relationship data between a user and a realm.
+- `PORTAL#<portal_guid>`: Stores portal configuration.
 
-## Portal Opening Workflow
+A Global Secondary Index (GSI) on `user_guid` allows for efficient querying of all realms a specific user belongs to.
 
-1. Validate realm and check for existing open portals.
-2. Invoke the game-specific AWS Lambda (Valheim or Vintage Story).
-3. The Lambda provisioned an EC2 Spot Instance and returns connection details.
-4. The `RealmsService` persists a `RealmPortal` object with the instance details, public IP, and connection parameters.
+### Service Layer Separation
+`RealmsService` provides a high-level API for realm operations, orchestrating complex tasks like managing world backups and handling user permissions within a realm.

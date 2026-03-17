@@ -1,17 +1,21 @@
-# Accounts Domain
+# Accounts Module
 
-The `accounts` module manages user profiles and persistence in Helheim.
+## Purpose
+The `accounts` module manages user accounts, including creation, retrieval, and deletion. It serves as the primary system for user identity management within the platform.
 
-## Responsibilities
+## Structure
+- `model.py`: Pydantic models for account data, defining DTOs (Data Transfer Objects) and database models.
+- `service.py`: `AccountsService` class containing business logic for account management (e.g., password hashing, validation).
+- `persistence.py`: `AccountsPersistence` class (Repository Pattern) for interacting with DynamoDB.
+- `exceptions.py`: Module-specific exceptions (e.g., `AccountNotFound`, `UsernameAlreadyExists`).
 
-- **Account Management:** Creating, retrieving, and deleting user accounts.
-- **Persistence:** Direct interaction with DynamoDB to store and retrieve user account data.
-- **Validation:** Ensures username uniqueness and validates account data structures.
-- **DTO Transformation:** Converts internal account models to Data Transfer Objects (DTOs) for external responses.
+## Design Patterns
 
-## Core Components
+### Repository Pattern
+The `AccountsPersistence` class abstracts all direct DynamoDB calls. It uses `boto3` to perform `put_item`, `get_item`, `query`, and `delete_item` operations. It also handles mapping between DynamoDB items and Pydantic models.
 
-- `service.py`: `AccountsService` class for business logic related to user accounts.
-- `persistence.py`: `AccountsPersistence` class for CRUD operations on DynamoDB's authentication table.
-- `model.py`: Pydantic models for `Account` (internal) and `CreateAccount` (input).
-- `exceptions.py`: Domain-specific exceptions like `AccountNotFound` and `UsernameAlreadyExists`.
+### Service Layer Separation
+`AccountsService` orchestrates the account creation process. It performs high-level validations (e.g., checking for username uniqueness) and handles password hashing using `pwdlib`. It depends on `AccountsPersistence` for data storage.
+
+### Single-Table Design
+Accounts are stored in a DynamoDB table. We use a Global Secondary Index (GSI) on `username` to allow for efficient lookups by username during the login and registration processes.

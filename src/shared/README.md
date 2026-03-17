@@ -1,18 +1,20 @@
 # Shared Module
 
-The `shared` module contains common utilities, AWS client wrappers, and infrastructure-related helper functions used across all Helheim domain modules.
+## Purpose
+The `shared` module contains common utilities, AWS clients, and foundational code shared across all other modules in the application.
 
-## Responsibilities
+## Structure
+- `dynamodb.py`: Utility functions for interacting with DynamoDB.
+- `s3.py`: Utility functions for interacting with S3.
+- `ec2.py`: Utility functions for interacting with EC2 (if used).
+- `lambda_client.py`: Utility functions for interacting with AWS Lambda.
+- `utils.py`: Common helper functions (e.g., password hashing, date/time formatting).
+- `__init__.py`: Exports common utilities.
 
-- **AWS Client Initialization:** Unified factory methods for Boto3 clients (`DynamoDB`, `S3`, `EC2`, `Lambda`).
-- **Data Persistence Helpers:** Low-level DynamoDB operations and data transformation utilities.
-- **Resource Management:** Interfaces for basic AWS resource interactions (e.g., S3 buckets, EC2 instance metadata).
-- **Utility Functions:** Global helper functions like timestamp formatting or unique identifier generation.
+## Design Patterns
 
-## Core Components
+### Client Singleton Pattern
+AWS clients (boto3) are initialized and shared through utility functions (e.g., `dynamodb_table`, `s3_client`). This pattern ensures efficient connection management and simplifies client configuration.
 
-- `dynamodb.py`: Helper class/functions for standard DynamoDB CRUD operations.
-- `ec2.py`: Unified interface for initializing and interacting with AWS EC2 service.
-- `lambda_client.py`: Unified interface for initializing and interacting with AWS Lambda service.
-- `s3.py`: Unified interface for initializing and interacting with AWS S3 service.
-- `utils.py`: Generic utility functions used throughout the backend.
+### Common Utilities
+Common helper functions are isolated in this module to avoid code duplication and ensure consistency across the application. This includes shared logic for password hashing (via `pwdlib`) and time-related operations.
