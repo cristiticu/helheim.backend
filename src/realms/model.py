@@ -210,16 +210,24 @@ class ColorAccurateWorldMapModifier(BaseModel):
     value: bool
 
 
-WorldModifier = Union[
+ValheimWorldModifier = Union[
     CombatModifier,
     DeathPenaltyModifier,
     ResourcesModifier,
     RaidsModifier,
     PortalsModifier,
+]
+
+VintageStoryWorldModifier = Union[
     MicroblockChiselingModifier,
     PlayerHealthPointsModifier,
     PlayerHungerSpeedModifier,
     ColorAccurateWorldMapModifier,
+]
+
+WorldModifier = Union[
+    ValheimWorldModifier,
+    VintageStoryWorldModifier,
 ]
 
 
@@ -229,7 +237,7 @@ class CreateRealmPortal(BaseModel):
     password: str
     preset: Optional[Literal["normal", "casual", "easy",
                              "hard", "hardcore", "immersive", "hammer"]] = None
-    modifiers: Optional[list[WorldModifier]] = None
+    modifiers: Optional[list[Union[ValheimWorldModifier, VintageStoryWorldModifier]]] = None
     keys: Optional[list[Literal["nobuildcost",
                                 "playerevents", "passivemobs", "nomap"]]] = None
     modpack: Optional[str] = None

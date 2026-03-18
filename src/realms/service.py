@@ -5,7 +5,7 @@ from uuid import uuid4
 from pydantic import UUID4
 import settings
 from realms.exceptions import InvalidRealmListFileName, PasswordTooShort, PortalAlreadyOpened
-from realms.model import CloseRealmPortal, CreateRealmFile, CreateRealmPortal, Realm, RealmPortal, RealmWorld
+from realms.model import CloseRealmPortal, CreateRealmFile, CreateRealmPortal, Realm, RealmPortal, RealmWorld, ValheimWorldModifier, VintageStoryWorldModifier
 from realms.persistence import RealmsPersistence
 from shared.ec2 import ec2_client
 from shared.lambda_client import lambda_client
@@ -66,13 +66,19 @@ class RealmsService():
             f"Successfully saved realm list file: {payload.file_name}")
 
     def invoke_valheim_instance_lambda(self, realm: Realm, payload: CreateRealmPortal):
+        valheim_modifiers = [
+            modifier.model_dump()
+            for modifier in payload.modifiers
+            if isinstance(modifier, ValheimWorldModifier.__args__)
+        ] if payload.modifiers else None
+
         lambda_payload = {
             "realmGuid": str(realm.guid),
             "serverName": payload.name,
             "worldName": payload.world_name,
             "password": payload.password,
             "preset": payload.preset,
-            "modifiers": [modifier.model_dump() for modifier in payload.modifiers] if payload.modifiers else None,
+            "modifiers": valheim_modifiers,
             "keys": payload.keys,
             "modpack": payload.modpack,
         }
@@ -91,13 +97,19 @@ class RealmsService():
         return response_payload
 
     def invoke_vintage_story_instance_lambda(self, realm: Realm, payload: CreateRealmPortal):
+        vintage_story_modifiers = [
+            modifier.model_dump()
+            for modifier in payload.modifiers
+            if isinstance(modifier, VintageStoryWorldModifier.__args__)
+        ] if payload.modifiers else None
+
         lambda_payload = {
             "realmGuid": str(realm.guid),
             "serverName": payload.name,
             "worldName": payload.world_name,
             "password": payload.password,
             "modpack": payload.modpack,
-            "modifiers": [modifier.model_dump() for modifier in payload.modifiers] if payload.modifiers else None,
+            "modifiers": vintage_story_modifiers,
         }
 
         self._logger.info(
