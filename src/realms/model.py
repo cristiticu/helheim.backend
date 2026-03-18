@@ -210,6 +210,21 @@ class ColorAccurateWorldMapModifier(BaseModel):
     value: bool
 
 
+class DroppedItemsTimerModifier(BaseModel):
+    key: Literal["droppedItemsTimer"]
+    value: int = Field(ge=0)
+
+
+class CreatureStrengthModifier(BaseModel):
+    key: Literal["creatureStrength"]
+    value: float = Field(ge=0.0, le=99.0)
+
+
+class FoodSpoilSpeedModifier(BaseModel):
+    key: Literal["foodSpoilSpeed"]
+    value: float = Field(ge=0.0, le=10.0)
+
+
 ValheimWorldModifier = Union[
     CombatModifier,
     DeathPenaltyModifier,
@@ -223,6 +238,9 @@ VintageStoryWorldModifier = Union[
     PlayerHealthPointsModifier,
     PlayerHungerSpeedModifier,
     ColorAccurateWorldMapModifier,
+    DroppedItemsTimerModifier,
+    CreatureStrengthModifier,
+    FoodSpoilSpeedModifier,
 ]
 
 WorldModifier = Union[
