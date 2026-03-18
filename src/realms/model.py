@@ -190,12 +190,36 @@ class PortalsModifier(BaseModel):
     value: Literal["normal", "casual", "hard", "veryhard"]
 
 
+class MicroblockChiselingModifier(BaseModel):
+    key: Literal["microblockChiseling"]
+    value: Literal["off", "stonewood", "all"]
+
+
+class PlayerHealthPointsModifier(BaseModel):
+    key: Literal["playerHealthPoints"]
+    value: int = Field(ge=1, le=999)
+
+
+class PlayerHungerSpeedModifier(BaseModel):
+    key: Literal["playerHungerSpeed"]
+    value: float = Field(ge=0.0, le=10.0)
+
+
+class ColorAccurateWorldMapModifier(BaseModel):
+    key: Literal["colorAccurateWorldMap"]
+    value: bool
+
+
 WorldModifier = Union[
     CombatModifier,
     DeathPenaltyModifier,
     ResourcesModifier,
     RaidsModifier,
     PortalsModifier,
+    MicroblockChiselingModifier,
+    PlayerHealthPointsModifier,
+    PlayerHungerSpeedModifier,
+    ColorAccurateWorldMapModifier,
 ]
 
 

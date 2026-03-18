@@ -97,6 +97,7 @@ class RealmsService():
             "worldName": payload.world_name,
             "password": payload.password,
             "modpack": payload.modpack,
+            "modifiers": [modifier.model_dump() for modifier in payload.modifiers] if payload.modifiers else None,
         }
 
         self._logger.info(
