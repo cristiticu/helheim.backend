@@ -1,0 +1,44 @@
+name: Trigger test
+
+on:
+    workflow_dispatch:
+        inputs:
+            # Declare any input keys you plan to send from the CMS trigger data payload.
+            # GitHub requires inputs to be pre-declared; all values arrive as strings.
+            message:
+                description: 'A message from the trigger'
+                required: false
+                default: ''
+            id:
+                description: 'Id that triggered this workflow'
+                required: false
+                default: ''
+            event:
+                description: 'Event name or label'
+                required: false
+                default: ''
+
+jobs:
+    verify-trigger:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Log received inputs
+              run: |
+                  echo "=== Trigger test received ==="
+                  echo "message:   ${{ inputs.message }}"
+                  echo "id:        ${{ inputs.id }}"
+                  echo "event:     ${{ inputs.event }}"
+
+            - name: Write job summary
+              run: |
+                  cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+                  ## Trigger Test
+
+                  | Input | Value |
+                  |-------|-------|
+                  | message | \`${{ inputs.message }}\` |
+                  | id | \`${{ inputs.id }}\` |
+                  | event | \`${{ inputs.event }}\` |
+
+                  Triggered at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+                  EOF
