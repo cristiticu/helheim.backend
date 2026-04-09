@@ -213,3 +213,110 @@ def test_close_realm_portal_success(client, seeded_realm, seeded_realm_user_admi
     )
     assert resp.status_code == 200
     assert resp.json()["message"].lower() == "portal closed successfully"
+
+
+def test_open_realm_portal_vintage_story_modifiers_success(client, seeded_realm_vintage, seeded_realm_user_admin, auth_header, stub_lambda_invocation):
+    import json
+    payload = {
+        "name": "VintageSrv",
+        "world_name": "VintageWorld",
+        "password": "secretpassword",
+        "modifiers": [
+            {"key": "playerHealthPoints", "value": 150},
+            {"key": "creatureStrength", "value": 1.5}
+        ]
+    }
+    resp = client.post(
+        f"/realm/{seeded_realm_vintage['guid']}/portal",
+        json=payload,
+        headers=auth_header,
+    )
+    assert resp.status_code == 200
+
+    # Capture and verify the Lambda payload
+    call_args = stub_lambda_invocation.call_args
+    assert call_args is not None
+    _, kwargs = call_args
+    sent_payload = json.loads(kwargs["Payload"])
+
+    assert "modifiers" in sent_payload
+    modifiers = sent_payload["modifiers"]
+    assert isinstance(modifiers, list)
+    assert len(modifiers) == 2
+    assert any(m["key"] == "playerHealthPoints" and m["value"] == 150 for m in modifiers)
+    assert any(m["key"] == "creatureStrength" and m["value"] == 1.5 for m in modifiers)
+
+
+def test_open_realm_portal_vintage_story_modifiers_validation_error(client, seeded_realm_vintage, seeded_realm_user_admin, auth_header, stub_lambda_invocation):
+    payload = {
+        "name": "VintageSrv",
+        "world_name": "VintageWorld",
+        "password": "secretpassword",
+        "modifiers": [
+            {"key": "creatureStrength", "value": 150}  # Max is 99.0
+        ]
+    }
+    resp = client.post(
+        f"/realm/{seeded_realm_vintage['guid']}/portal",
+        json=payload,
+        headers=auth_header,
+    )
+    assert resp.status_code == 422
+
+
+def test_open_realm_portal_vintage_story_modifiers_filtering(client, seeded_realm_vintage, seeded_realm_user_admin, auth_header, stub_lambda_invocation):
+    import json
+    payload = {
+        "name": "VintageSrv",
+        "world_name": "VintageWorld",
+        "password": "secretpassword",
+        "modifiers": [
+            {"key": "playerHealthPoints", "value": 100},
+            {"key": "combat", "value": "hard"}  # Valheim modifier
+        ]
+    }
+    resp = client.post(
+        f"/realm/{seeded_realm_vintage['guid']}/portal",
+        json=payload,
+        headers=auth_header,
+    )
+    assert resp.status_code == 200
+
+    # Capture and verify the Lambda payload
+    call_args = stub_lambda_invocation.call_args
+    assert call_args is not None
+    _, kwargs = call_args
+    sent_payload = json.loads(kwargs["Payload"])
+
+    assert "modifiers" in sent_payload
+    modifiers = sent_payload["modifiers"]
+    # Should ONLY contain Vintage Story modifiers
+    assert len(modifiers) == 1
+    assert modifiers[0]["key"] == "playerHealthPoints"
+    assert modifiers[0]["value"] == 100
+    # Valheim modifier 'combat' must be EXCLUDED
+    assert not any(m["key"] == "combat" for m in modifiers)
+
+
+def test_open_realm_portal_vintage_story_modifiers_empty(client, seeded_realm_vintage, seeded_realm_user_admin, auth_header, stub_lambda_invocation):
+    import json
+    payload = {
+        "name": "VintageSrv",
+        "world_name": "VintageWorld",
+        "password": "secretpassword",
+        "modifiers": []
+    }
+    resp = client.post(
+        f"/realm/{seeded_realm_vintage['guid']}/portal",
+        json=payload,
+        headers=auth_header,
+    )
+    assert resp.status_code == 200
+
+    call_args = stub_lambda_invocation.call_args
+    assert call_args is not None
+    _, kwargs = call_args
+    sent_payload = json.loads(kwargs["Payload"])
+
+    assert "modifiers" in sent_payload
+    assert sent_payload["modifiers"] == []

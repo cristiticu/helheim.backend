@@ -190,12 +190,62 @@ class PortalsModifier(BaseModel):
     value: Literal["normal", "casual", "hard", "veryhard"]
 
 
-WorldModifier = Union[
+class MicroblockChiselingModifier(BaseModel):
+    key: Literal["microblockChiseling"]
+    value: Literal["off", "stonewood", "all"]
+
+
+class PlayerHealthPointsModifier(BaseModel):
+    key: Literal["playerHealthPoints"]
+    value: int = Field(ge=1, le=999)
+
+
+class PlayerHungerSpeedModifier(BaseModel):
+    key: Literal["playerHungerSpeed"]
+    value: float = Field(ge=0.0, le=10.0)
+
+
+class ColorAccurateWorldMapModifier(BaseModel):
+    key: Literal["colorAccurateWorldMap"]
+    value: bool
+
+
+class DroppedItemsTimerModifier(BaseModel):
+    key: Literal["droppedItemsTimer"]
+    value: int = Field(ge=0)
+
+
+class CreatureStrengthModifier(BaseModel):
+    key: Literal["creatureStrength"]
+    value: float = Field(ge=0.0, le=99.0)
+
+
+class FoodSpoilSpeedModifier(BaseModel):
+    key: Literal["foodSpoilSpeed"]
+    value: float = Field(ge=0.0, le=10.0)
+
+
+ValheimWorldModifier = Union[
     CombatModifier,
     DeathPenaltyModifier,
     ResourcesModifier,
     RaidsModifier,
     PortalsModifier,
+]
+
+VintageStoryWorldModifier = Union[
+    MicroblockChiselingModifier,
+    PlayerHealthPointsModifier,
+    PlayerHungerSpeedModifier,
+    ColorAccurateWorldMapModifier,
+    DroppedItemsTimerModifier,
+    CreatureStrengthModifier,
+    FoodSpoilSpeedModifier,
+]
+
+WorldModifier = Union[
+    ValheimWorldModifier,
+    VintageStoryWorldModifier,
 ]
 
 
@@ -205,7 +255,7 @@ class CreateRealmPortal(BaseModel):
     password: str
     preset: Optional[Literal["normal", "casual", "easy",
                              "hard", "hardcore", "immersive", "hammer"]] = None
-    modifiers: Optional[list[WorldModifier]] = None
+    modifiers: Optional[list[Union[ValheimWorldModifier, VintageStoryWorldModifier]]] = None
     keys: Optional[list[Literal["nobuildcost",
                                 "playerevents", "passivemobs", "nomap"]]] = None
     modpack: Optional[str] = None
